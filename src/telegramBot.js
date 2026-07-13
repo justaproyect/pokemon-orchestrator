@@ -4,8 +4,9 @@ const { generatePlan, getPlan, getUpcomingPlans } = require('./services/planGene
 const { processFeedback, getRecentFeedback } = require('./services/feedbackProcessor');
 const { getDailyAnalytics, getWeeklyReport, formatReport } = require('./services/analyticsAnalyzer');
 const { analyzeTrends, getLatestTrends } = require('./services/trendAnalyzer');
-const { generatePlanContent } = require('./services/contentGenerator');
+const { generatePlanContent, generateFullContent } = require('./services/contentGenerator');
 const ai = require('./services/ai');
+const axios = require('axios');
 
 let bot = null;
 
@@ -39,6 +40,7 @@ function init() {
       '/plan - Ver plan de hoy\n' +
       '/plan [fecha] - Ver plan de una fecha\n' +
       '/generar - Crear plan manualmente\n' +
+      '/probar [groupId] - Probar 1 post en grupo de prueba\n' +
       '/tendencias - Ver tendencias actuales\n' +
       '/status - Estado de los bots\n' +
       '/reporte - Reporte semanal\n' +
@@ -55,6 +57,7 @@ function init() {
       '/plan - Plan de hoy\n' +
       '/plan 2026-07-15 - Plan de una fecha\n' +
       '/generar - Crear plan ahora\n' +
+      '/probar [groupId] - Probar 1 post en grupo\n' +
       '/tendencias - Analizar tendencias\n' +
       '/status - Estado del sistema\n' +
       '/reporte - Reporte semanal\n' +
@@ -108,6 +111,62 @@ function init() {
       await ctx.reply(msg);
     } catch (e) {
       await ctx.reply(`Error: ${e.message}`);
+    }
+  });
+
+  bot.command('probar', async (ctx) => {
+    const groupId = ctx.match;
+    if (!groupId) {
+      await ctx.reply('Usa: /probar [groupId]\nEjemplo: /probar 120363XXXX@g.us\n\nPrimero registra el grupo con !registrar prueba en WhatsApp');
+      return;
+    }
+
+    if (!config.COMMUNITY_BOT_URL) {
+      await ctx.reply('COMMUNITY_BOT_URL no configurada en Render');
+      return;
+    }
+
+    await ctx.reply('Generando post de prueba con imagen...');
+
+    try {
+      const pokemonData = {
+        name: 'Pikachu',
+        id: 25,
+        types: ['electric'],
+        sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png',
+      };
+
+      const contentTypes = ['pokemon-dia', 'trivia', 'ofertas', 'intercambios', 'subasta', 'rifas', 'anuncio', 'meme', 'quiz', 'dato-curioso'];
+      const randomType = contentTypes[Math.floor(Math.random() * contentTypes.length)];
+
+      const content = await generateFullContent(randomType, '', pokemonData);
+
+      if (!content) {
+        await ctx.reply('Error generando contenido');
+        return;
+      }
+
+      let msg = `*POST DE PRUEBA*\n\n`;
+      msg += `Tipo: ${randomType}\n`;
+      msg += `Grupo: ${groupId}\n\n`;
+      msg += `${content.message.substring(0, 200)}...\n\n`;
+      msg += content.imageUrl ? `Imagen: ✅ Subida a Cloudinary` : `Imagen: ❌ Sin imagen`;
+      msg += `\n\nEnviando al grupo de prueba...`;
+      await ctx.reply(msg);
+
+      const response = await axios.post(`${config.COMMUNITY_BOT_URL}/probar`, {
+        message: content.message,
+        imageUrl: content.imageUrl,
+        groupId: groupId,
+      });
+
+      if (response.data.success) {
+        await ctx.reply('✅ Post enviado al grupo de prueba');
+      } else {
+        await ctx.reply(`❌ Error: ${response.data.error}`);
+      }
+    } catch (e) {
+      await ctx.reply(`❌ Error: ${e.message}`);
     }
   });
 
