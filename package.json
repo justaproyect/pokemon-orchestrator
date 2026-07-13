@@ -1,0 +1,17 @@
+{
+  "name": "pokemon-orchestrator",
+  "version": "1.0.0",
+  "description": "Orchestrator bot - Analiza tendencias, propone ideas, coordina contenido Pokemon",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongodb": "^6.3.0",
+    "node-cron": "^3.0.3",
+    "axios": "^1.6.0",
+    "grammy": "^1.21.1"
+  }
+}

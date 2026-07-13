@@ -1,0 +1,27 @@
+module.exports = {
+  PORT: process.env.PORT || 3002,
+  MONGO_URI: process.env.MONGO_URI || '',
+  MONGO_DB: process.env.MONGO_DB || 'pokemon_bots',
+
+  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
+  TELEGRAM_ALLOWED_USERS: (process.env.TELEGRAM_ALLOWED_USERS || '').split(',').filter(Boolean),
+
+  CONTENT_BOT_URL: process.env.CONTENT_BOT_URL || '',
+  COMMUNITY_BOT_URL: process.env.COMMUNITY_BOT_URL || '',
+  TOYTSUKY_URL: process.env.TOYTSUKY_URL || '',
+
+  TIMEZONE: process.env.TIMEZONE || 'America/Bogota',
+  PLAN_HOUR: parseInt(process.env.PLAN_HOUR || '1'),
+  PLAN_MINUTE: parseInt(process.env.PLAN_MINUTE || '0'),
+  ANALYTICS_HOUR: parseInt(process.env.ANALYTICS_HOUR || '23'),
+
+  GROUPS_ROTATION: [
+    ['general', 'tienda', 'torneos'],
+    ['compra', 'rifas', 'anuncios'],
+    ['general', 'subastas', 'rifas'],
+    ['tienda', 'torneos', 'compra'],
+    ['anuncios', 'general', 'subastas'],
+    ['rifas', 'tienda', 'torneos'],
+    ['compra', 'subastas', 'anuncios'],
+  ],
+};

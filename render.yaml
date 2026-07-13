@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: pokemon-orchestrator
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/index.js
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ALLOWED_USERS
+        sync: false
+      - key: CONTENT_BOT_URL
+        sync: false
+      - key: COMMUNITY_BOT_URL
+        sync: false
+      - key: TOYTSUKY_URL
+        sync: false
+      - key: TIMEZONE
+        value: America/Bogota
+      - key: PLAN_HOUR
+        value: "1"
+      - key: ANALYTICS_HOUR
+        value: "23"
