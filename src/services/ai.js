@@ -1,34 +1,91 @@
 const axios = require('axios');
 const config = require('../config');
 
-const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const PROVIDERS = [
+  {
+    name: 'Groq',
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    model: 'llama-3.3-70b-versatile',
+    key: () => config.GROQ_API_KEY,
+    headers: (key) => ({
+      'Authorization': `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    }),
+  },
+  {
+    name: 'Google',
+    url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+    model: 'gemini-2.0-flash',
+    key: () => config.GOOGLE_AI_KEY,
+    transform: (messages) => ({
+      contents: messages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      })),
+    }),
+    extractResponse: (data) => data.candidates?.[0]?.content?.parts?.[0]?.text,
+    headers: (key) => ({
+      'Content-Type': 'application/json',
+      'x-goog-api-key': key,
+    }),
+  },
+  {
+    name: 'OpenRouter',
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    model: config.AI_MODEL || 'google/gemini-2.0-flash-exp:free',
+    key: () => config.OPENROUTER_API_KEY,
+    headers: (key) => ({
+      'Authorization': `Bearer ${key}`,
+      'HTTP-Referer': 'https://pokemon-orchestrator.onrender.com',
+      'X-Title': 'Pokemon Orchestrator',
+      'Content-Type': 'application/json',
+    }),
+  },
+];
 
 async function chat(messages, options = {}) {
-  if (!config.OPENROUTER_API_KEY) {
-    console.log('[AI] No hay API key configurada');
-    return null;
+  for (const provider of PROVIDERS) {
+    const apiKey = provider.key();
+    if (!apiKey) continue;
+
+    try {
+      console.log(`[AI] Intentando con ${provider.name}...`);
+
+      let data;
+      if (provider.transform) {
+        data = provider.transform(messages);
+      } else {
+        data = {
+          model: options.model || provider.model,
+          messages,
+          max_tokens: options.maxTokens || 500,
+          temperature: options.temperature || 0.8,
+        };
+      }
+
+      const res = await axios.post(provider.url, data, {
+        headers: provider.headers(apiKey),
+        timeout: 30000,
+      });
+
+      let content;
+      if (provider.extractResponse) {
+        content = provider.extractResponse(res.data);
+      } else {
+        content = res.data.choices?.[0]?.message?.content;
+      }
+
+      if (content) {
+        console.log(`[AI] Exito con ${provider.name}`);
+        return content;
+      }
+    } catch (e) {
+      console.log(`[AI] ${provider.name} fallo: ${e.response?.data?.error?.message || e.message}`);
+    }
   }
 
-  try {
-    const res = await axios.post(API_URL, {
-      model: options.model || config.AI_MODEL,
-      messages,
-      max_tokens: options.maxTokens || 500,
-      temperature: options.temperature || 0.8,
-    }, {
-      headers: {
-        'Authorization': `Bearer ${config.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://pokemon-orchestrator.onrender.com',
-        'X-Title': 'Pokemon Orchestrator',
-      },
-      timeout: 30000,
-    });
-
-    return res.data.choices[0].message.content;
-  } catch (e) {
-    console.error('[AI] Error:', e.response?.data?.error?.message || e.message);
-    return null;
-  }
+  console.error('[AI] Todos los proveedores fallaron');
+  return null;
 }
 
 async function analyzeTrendsWithAI(trends) {
@@ -122,43 +179,43 @@ Pokemon: ${pokemonData?.name || 'aleatorio'}
 Tipo: ${pokemonData?.types || 'desconocido'}
 Estilo: Divertido, informativo, con emojis. Maximo 300 caracteres.
 Termina con: "Envia *!pokemon* para ver otro Pokemon"`,
-    
+
     'trivia': `Crea una pregunta de trivia Pokemon para un grupo de WhatsApp.
 Tema: ${theme || 'general'}
 Formato:
 *TRIVIA DEL DIA*
-[piregunta]
+[pregunta]
 A) [opcion]
 B) [opcion]
 C) [opcion]
 D) [opcion]
 Responde con *!trivia [letra]*`,
-    
+
     'ofertas': `Crea un post de ofertas para una tienda Pokemon.
 Estilo: Emocionante, con descuentos ficticios. Usa asteriscos para negrita.
 Termina con: "Escribe *!tienda* para pedidos"`,
-    
+
     'intercambios': `Crea un post de intercambios Pokemon.
 Estilo: Ofrece 3 Pokemon, pide 2 Pokemon.
 Termina con: "Envia *!damepoke* para ver que puedes ofrecer"`,
-    
+
     'subasta': `Crea una subasta de un articulo Pokemon.
 Estilo: Descripcion del producto, precio inicial, puja minima.
 Termina con: "Haz tu puja con *!subasta*"`,
-    
+
     'rifas': `Crea una rifa Pokemon.
 Estilo: Premio atractivo, precio del boleto, como participar.
 Termina con: "Escribe *!rifa* para participar"`,
-    
+
     'anuncio': `Crea un anuncio importante para la comunidad Pokemon.
 Estilo: Formal pero amigable. Incluye reglas o informacion importante.`,
-    
+
     'meme': `Crea un texto divertido/meme sobre Pokemon para un grupo de WhatsApp.
 Estilo: Humor, referencias al juego/anime. Maximo 200 caracteres.`,
-    
+
     'quiz': `Crea un quiz rapido de Pokemon con 3 preguntas.
 Formato: Pregunta + respuesta correcta.`,
-    
+
     'dato-curioso': `Crea un dato curioso interesante sobre Pokemon.
 Estilo: Sorprendente, educativo. Maximo 200 caracteres.`,
   };

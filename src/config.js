@@ -11,6 +11,8 @@ module.exports = {
   TOYTSUKY_URL: process.env.TOYTSUKY_URL || '',
 
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
+  GROQ_API_KEY: process.env.GROQ_API_KEY || '',
+  GOOGLE_AI_KEY: process.env.GOOGLE_AI_KEY || '',
   AI_MODEL: process.env.AI_MODEL || 'google/gemini-2.0-flash-exp:free',
 
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',

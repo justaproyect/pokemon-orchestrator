@@ -15,11 +15,12 @@ let planTask = null;
 let trendsTask = null;
 
 app.get('/health', (req, res) => {
+  const hasAI = !!(config.GROQ_API_KEY || config.GOOGLE_AI_KEY || config.OPENROUTER_API_KEY);
   res.json({
     status: 'ok',
     service: 'pokemon-orchestrator',
     telegram: !!config.TELEGRAM_BOT_TOKEN,
-    ai: !!config.OPENROUTER_API_KEY,
+    ai: hasAI,
     mongo: !!config.MONGO_URI,
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),

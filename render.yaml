@@ -17,6 +17,10 @@ services:
         sync: false
       - key: AI_MODEL
         value: google/gemini-2.0-flash-exp:free
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GOOGLE_AI_KEY
+        sync: false
       - key: CONTENT_BOT_URL
         sync: false
       - key: COMMUNITY_BOT_URL
