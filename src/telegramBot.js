@@ -313,7 +313,7 @@ function init() {
     for (let i = 0; i < days; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      dates.push(d.to Date().toISOString().split('T')[0]);
+      dates.push(d.toISOString().split('T')[0]);
     }
 
     let msg = '*HISTORIAL 7 DIAS*\n\n';
