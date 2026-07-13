@@ -11,7 +11,7 @@ module.exports = {
   TOYTSUKY_URL: process.env.TOYTSUKY_URL || '',
 
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
-  AI_MODEL: process.env.AI_MODEL || 'google/gemini-2.0-flash-001',
+  AI_MODEL: process.env.AI_MODEL || 'google/gemini-2.0-flash-exp:free',
 
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '',

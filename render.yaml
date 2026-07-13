@@ -16,7 +16,7 @@ services:
       - key: OPENROUTER_API_KEY
         sync: false
       - key: AI_MODEL
-        value: google/gemini-2.0-flash-001
+        value: google/gemini-2.0-flash-exp:free
       - key: CONTENT_BOT_URL
         sync: false
       - key: COMMUNITY_BOT_URL
