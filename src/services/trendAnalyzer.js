@@ -1,4 +1,5 @@
 const axios = require('axios');
+const config = require('../config');
 const { getDb } = require('../mongo');
 
 const TREND_SOURCES = {

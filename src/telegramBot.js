@@ -4,6 +4,7 @@ const { generatePlan, getPlan, getUpcomingPlans } = require('./services/planGene
 const { processFeedback, getRecentFeedback } = require('./services/feedbackProcessor');
 const { getDailyAnalytics, getWeeklyReport, formatReport } = require('./services/analyticsAnalyzer');
 const { analyzeTrends, getLatestTrends } = require('./services/trendAnalyzer');
+const { generatePlanContent } = require('./services/contentGenerator');
 const ai = require('./services/ai');
 
 let bot = null;
@@ -89,9 +90,25 @@ function init() {
   });
 
   bot.command('generar', async (ctx) => {
-    await ctx.reply('Generando plan...');
-    const plan = await generatePlan();
-    await ctx.reply(`Plan creado para ${plan.date} con ${plan.posts.length} posts.`);
+    await ctx.reply('Generando plan y contenido con imagenes...');
+    try {
+      const plan = await generatePlan();
+      await ctx.reply(`Plan creado: ${plan.posts.length} posts. Generando contenido e imagenes...`);
+      
+      const results = await generatePlanContent(plan);
+      
+      let msg = `*CONTENIDO GENERADO*\n\n`;
+      for (const content of results) {
+        msg += `*${content.groupType}* (${content.contentType})\n`;
+        msg += `${content.message?.substring(0, 80)}...\n`;
+        msg += `Imagen: ${content.imageUrl ? '✅ Cloudinary' : '❌ Sin imagen'}\n\n`;
+      }
+      
+      msg += `\nTotal: ${results.length} posts con contenido listo para enviar.`;
+      await ctx.reply(msg);
+    } catch (e) {
+      await ctx.reply(`Error: ${e.message}`);
+    }
   });
 
   bot.command('tendencias', async (ctx) => {
