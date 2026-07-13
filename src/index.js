@@ -5,6 +5,7 @@ const mongo = require('./mongo');
 const telegramBot = require('./telegramBot');
 const { generatePlan } = require('./services/planGenerator');
 const { analyzeTrends } = require('./services/trendAnalyzer');
+const { generateFullContent } = require('./services/contentGenerator');
 
 const app = express();
 app.use(express.json());
@@ -31,6 +32,42 @@ app.get('/', (req, res) => {
     description: 'Analiza tendencias, propone ideas, coordina contenido Pokemon',
     commands: ['/plan', '/generar', '/tendencias', '/status', '/reporte', '/feedback'],
   });
+});
+
+app.post('/api/probar', async (req, res) => {
+  try {
+    const { contentType, groupId } = req.body;
+
+    const types = ['pokemon-dia', 'trivia', 'ofertas', 'intercambios', 'subasta', 'rifas', 'anuncio', 'meme', 'quiz', 'dato-curioso'];
+    const randomType = contentType || types[Math.floor(Math.random() * types.length)];
+
+    const pokemonData = {
+      name: 'Pikachu',
+      id: 25,
+      types: ['electric'],
+      sprite: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png',
+    };
+
+    console.log(`[API] Generando post de prueba: ${randomType}`);
+    const content = await generateFullContent(randomType, '', pokemonData);
+
+    if (!content) {
+      return res.status(500).json({ success: false, error: 'Error generando contenido' });
+    }
+
+    console.log(`[API] Post generado: ${content.message?.substring(0, 50)}...`);
+
+    res.json({
+      success: true,
+      message: content.message,
+      imageUrl: content.imageUrl,
+      contentType: randomType,
+      groupId: groupId,
+    });
+  } catch (e) {
+    console.error('[API] Error en /api/probar:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
 function startCronJobs() {
