@@ -37,40 +37,36 @@ function init() {
   bot.command('start', async (ctx) => {
     await ctx.reply(
       '*Pokemon Orchestrator*\n\n' +
-      'Comandos disponibles:\n' +
-      '/plan - Ver plan de hoy\n' +
-      '/generar - Crear plan manualmente\n' +
-      '/probar [groupId] - Probar 1 post\n' +
+      'Comandos:\n' +
+      '/generar - Crear posts con imagenes\n' +
       '/pendientes - Ver posts para revisar\n' +
-      '/aprobar [id] - Enviar post al grupo\n' +
-      '/diferir [id] - Guardar para despues\n' +
-      '/editar [id] [texto] - Modificar post\n' +
-      '/tendencias - Ver tendencias actuales\n' +
-      '/status - Estado de los bots\n' +
-      '/reporte - Reporte semanal\n' +
-      '/feedback [mensaje] - Dar feedback\n' +
+      '/plan - Ver plan de hoy\n' +
+      '/probar [groupId] - Probar 1 post\n' +
+      '/tendencias - Ver tendencias\n' +
+      '/status - Estado del sistema\n' +
       '/chat [mensaje] - Hablar con la IA\n' +
-      '/historial - Ultimos 7 dias\n' +
-      '/ayuda - Ver esta ayuda'
+      '/ayuda - Ver esta ayuda\n\n' +
+      '*Como revisar posts:*\n' +
+      'Despues de /generar, toca los botones\n' +
+      '✅ Aprobar → Se envia al grupo\n' +
+      '⏸️ Diferir → Guarda para despues\n' +
+      '✏️ Editar → Cambias el texto'
     );
   });
 
   bot.command('ayuda', async (ctx) => {
     await ctx.reply(
       '*Comandos:*\n\n' +
+      '/generar - Crear posts ahora\n' +
+      '/pendientes - Ver posts pendientes\n' +
       '/plan - Plan de hoy\n' +
-      '/generar - Crear plan ahora\n' +
       '/probar [groupId] - Probar 1 post\n' +
-      '/pendientes - Ver posts para revisar\n' +
-      '/aprobar [id] - Enviar post\n' +
-      '/diferir [id] - Guardar para despues\n' +
-      '/editar [id] [texto] - Modificar\n' +
       '/tendencias - Analizar tendencias\n' +
       '/status - Estado del sistema\n' +
-      '/reporte - Reporte semanal\n' +
-      '/feedback [msg] - Ej: /feedback Las trivia estan muy faciles\n' +
-      '/chat [msg] - Ej: /chat QuePokemon destacar esta semana?\n' +
-      '/historial - Ultimos 7 dias'
+      '/chat [msg] - Hablar con la IA\n\n' +
+      '*Revisar posts:*\n' +
+      'Toca ✅ o ⏸️ en cada post\n' +
+      'No necesitas escribir comandos'
     );
   });
 
@@ -103,21 +99,35 @@ function init() {
     await ctx.reply('Generando plan y contenido con imagenes...');
     try {
       const plan = await generatePlan();
-      await ctx.reply(`Plan creado: ${plan.posts.length} posts. Generando contenido e imagenes...`);
+      await ctx.reply(`Plan: ${plan.posts.length} posts. Generando contenido e imagenes...`);
       
       const results = await generatePlanContent(plan);
       
-      let msg = `*CONTENIDO GENERADO - PENDIENTE REVISION*\n\n`;
+      await ctx.reply(`*CONTENIDO LISTO PARA REVISAR*\n\nToca un boton para aprobar o diferir cada post:`);
+
       for (const content of results) {
-        msg += `*${content.groupType}* (${content.contentType})\n`;
-        msg += `${content.message?.substring(0, 80)}...\n`;
-        msg += `Imagen: ${content.imageUrl ? '✅' : '❌'}\n`;
-        msg += `ID: \`${content.postId}\`\n\n`;
+        const preview = content.message?.substring(0, 120) || 'Sin texto';
+        const imgStatus = content.imageUrl ? '📷 Con imagen' : '⚠️ Sin imagen';
+
+        const keyboard = {
+          inline_keyboard: [
+            [
+              { text: '✅ Aprobar', callback_data: `aprobar:${content.postId}` },
+              { text: '⏸️ Diferir', callback_data: `diferir:${content.postId}` },
+            ],
+            [
+              { text: '✏️ Editar texto', callback_data: `editar:${content.postId}` },
+            ],
+          ],
+        };
+
+        await ctx.reply(
+          `*${content.contentType.toUpperCase()}* → ${content.groupType}\n` +
+          `${preview}...\n` +
+          `${imgStatus}`,
+          { reply_markup: keyboard }
+        );
       }
-      
-      msg += `\nTotal: ${results.length} posts listos.\n\n`;
-      msg += `Usa /pendientes para ver todos los posts pendientes.`;
-      await ctx.reply(msg);
     } catch (e) {
       await ctx.reply(`Error: ${e.message}`);
     }
@@ -340,124 +350,152 @@ function init() {
       return;
     }
 
-    let msg = `*POSTS PENDIENTES (${pending.length})*\n\n`;
+    await ctx.reply(`Tienes *${pending.length} posts* para revisar:`);
+
     for (const post of pending) {
-      const preview = post.message?.substring(0, 60) || 'Sin texto';
-      msg += `*ID:* \`${post.postId}\`\n`;
-      msg += `*Tipo:* ${post.contentType}\n`;
-      msg += `*Grupo:* ${post.groupType}\n`;
-      msg += `*Texto:* ${preview}...\n`;
-      msg += `*Imagen:* ${post.imageUrl ? '✅' : '❌'}\n\n`;
+      const preview = post.message?.substring(0, 100) || 'Sin texto';
+      const imgStatus = post.imageUrl ? '📷 Con imagen' : '⚠️ Sin imagen';
+
+      const keyboard = {
+        inline_keyboard: [
+          [
+            { text: '✅ Aprobar', callback_data: `aprobar:${post.postId}` },
+            { text: '⏸️ Diferir', callback_data: `diferir:${post.postId}` },
+          ],
+          [
+            { text: '✏️ Editar texto', callback_data: `editar:${post.postId}` },
+          ],
+        ],
+      };
+
+      await ctx.reply(
+        `*${post.contentType.toUpperCase()}* → ${post.groupType}\n` +
+        `${preview}...\n` +
+        `${imgStatus}`,
+        { reply_markup: keyboard }
+      );
     }
-
-    msg += 'Comandos:\n';
-    msg += '/aprobar [id] - Enviar al grupo\n';
-    msg += '/diferir [id] - Guardar para despues\n';
-    msg += '/editar [id] [nuevo texto]\n';
-
-    await ctx.reply(msg);
   });
 
-  bot.command('aprobar', async (ctx) => {
-    const postId = ctx.match;
-    if (!postId) {
-      await ctx.reply('Usa: /aprobar [postId]\nEjemplo: /aprobar plan_20260713_general_0');
-      return;
-    }
-
+  bot.on('callback_query:data', async (ctx) => {
+    const [action, postId] = ctx.callbackQuery.data.split(':');
     const db = getDb();
-    const post = await db.collection('generated_content').findOne({ postId });
 
-    if (!post) {
-      await ctx.reply('Post no encontrado.');
-      return;
-    }
-
-    if (post.status !== 'pending_review') {
-      await ctx.reply(`El post ya tiene status: ${post.status}`);
-      return;
-    }
-
-    await db.collection('generated_content').updateOne(
-      { postId },
-      { $set: { status: 'approved', reviewedAt: new Date(), approvedBy: 'telegram' } }
-    );
-
-    console.log(`[APROBAR] Post ${postId} aprobado`);
-
-    try {
-      if (config.COMMUNITY_BOT_URL) {
-        const response = await axios.post(`${config.COMMUNITY_BOT_URL}/probar`, {
-          message: post.message,
-          imageUrl: post.imageUrl,
-          groupId: getGroupIdForType(post.groupType),
-        });
-
-        if (response.data.success) {
-          await ctx.reply(`✅ Post enviado al grupo ${post.groupType}`);
-          await db.collection('generated_content').updateOne(
-            { postId },
-            { $set: { status: 'sent', sentAt: new Date() } }
-          );
-        } else {
-          await ctx.reply(`⚠️ Post aprobado pero error al enviar: ${response.data.error}`);
-        }
-      } else {
-        await ctx.reply(`✅ Post aprobado. Esperando envio por MiniBot.`);
+    if (action === 'aprobar') {
+      const post = await db.collection('generated_content').findOne({ postId });
+      if (!post) {
+        await ctx.answerCallbackQuery('Post no encontrado');
+        return;
       }
-    } catch (e) {
-      await ctx.reply(`✅ Post aprobado. Error de conexion: ${e.message}`);
+
+      if (post.status !== 'pending_review') {
+        await ctx.answerCallbackQuery(`Ya tiene status: ${post.status}`);
+        return;
+      }
+
+      await db.collection('generated_content').updateOne(
+        { postId },
+        { $set: { status: 'approved', reviewedAt: new Date(), approvedBy: 'telegram' } }
+      );
+
+      console.log(`[APROBAR] Post ${postId} aprobado`);
+
+      let enviado = false;
+      if (config.COMMUNITY_BOT_URL) {
+        try {
+          const response = await axios.post(`${config.COMMUNITY_BOT_URL}/probar`, {
+            message: post.message,
+            imageUrl: post.imageUrl,
+            groupId: getGroupIdForType(post.groupType),
+          });
+          if (response.data.success) {
+            enviado = true;
+            await db.collection('generated_content').updateOne(
+              { postId },
+              { $set: { status: 'sent', sentAt: new Date() } }
+            );
+          }
+        } catch (e) {
+          console.log('[APROBAR] Error enviando:', e.message);
+        }
+      }
+
+      const keyboard = {
+        inline_keyboard: [[
+          { text: enviado ? '✅ Enviado' : '✅ Aprobado (pendiente envio)', callback_data: 'noop' },
+        ]],
+      };
+
+      await ctx.editMessageText(
+        `✅ *APROBADO*\n\n` +
+        `*Tipo:* ${post.contentType}\n` +
+        `*Grupo:* ${post.groupType}\n` +
+        `${enviado ? '*Enviado al grupo de WhatsApp*' : '*Guardado para envio automatico*'}`,
+        { reply_markup: keyboard }
+      );
+      await ctx.answerCallbackQuery('Aprobado');
+    }
+
+    if (action === 'diferir') {
+      await db.collection('generated_content').updateOne(
+        { postId },
+        { $set: { status: 'deferred', reviewedAt: new Date() } }
+      );
+
+      const keyboard = {
+        inline_keyboard: [[
+          { text: '⏸️ Diferido', callback_data: 'noop' },
+        ]],
+      };
+
+      await ctx.editMessageText(`⏸️ *DIFERIDO*\n\nGuardado para despues.`);
+      await ctx.editMessageReplyMarkup({ reply_markup: keyboard });
+      await ctx.answerCallbackQuery('Diferido');
+    }
+
+    if (action === 'editar') {
+      await ctx.reply('Escribe el nuevo texto para este post:');
+      await ctx.answerCallbackQuery();
+
+      const awaitingEdit = new Map();
+      awaitingEdit.set(ctx.from.id, postId);
+      bot._awaitingEdit = awaitingEdit;
+    }
+
+    if (action === 'noop') {
+      await ctx.answerCallbackQuery();
     }
   });
 
-  bot.command('diferir', async (ctx) => {
-    const postId = ctx.match;
-    if (!postId) {
-      await ctx.reply('Usa: /diferir [postId]');
-      return;
+  bot.on('message:text', async (ctx) => {
+    if (bot._awaitingEdit && bot._awaitingEdit.has(ctx.from.id)) {
+      const postId = bot._awaitingEdit.get(ctx.from.id);
+      bot._awaitingEdit.delete(ctx.from.id);
+
+      const db = getDb();
+      await db.collection('generated_content').updateOne(
+        { postId },
+        { $set: { message: ctx.message.text, updatedAt: new Date() } }
+      );
+
+      const post = await db.collection('generated_content').findOne({ postId });
+
+      const keyboard = {
+        inline_keyboard: [
+          [
+            { text: '✅ Aprobar', callback_data: `aprobar:${postId}` },
+            { text: '⏸️ Diferir', callback_data: `diferir:${postId}` },
+          ],
+        ],
+      };
+
+      await ctx.reply(
+        `✏️ *TEXTO ACTUALIZADO*\n\n` +
+        `${ctx.message.text.substring(0, 200)}...\n\n` +
+        `Grupo: ${post?.groupType}`,
+        { reply_markup: keyboard }
+      );
     }
-
-    const db = getDb();
-    const post = await db.collection('generated_content').findOne({ postId });
-
-    if (!post) {
-      await ctx.reply('Post no encontrado.');
-      return;
-    }
-
-    await db.collection('generated_content').updateOne(
-      { postId },
-      { $set: { status: 'deferred', reviewedAt: new Date() } }
-    );
-
-    await ctx.reply(`⏸️ Post diferido. Quedara guardado para despues.`);
-  });
-
-  bot.command('editar', async (ctx) => {
-    const args = ctx.match;
-    if (!args || args.length < 2) {
-      await ctx.reply('Usa: /editar [postId] [nuevo texto]\nEjemplo: /editar plan_20260713_general_0 Hola Pokemon!');
-      return;
-    }
-
-    const parts = args.split(' ');
-    const postId = parts[0];
-    const newMessage = parts.slice(1).join(' ');
-
-    const db = getDb();
-    const post = await db.collection('generated_content').findOne({ postId });
-
-    if (!post) {
-      await ctx.reply('Post no encontrado.');
-      return;
-    }
-
-    await db.collection('generated_content').updateOne(
-      { postId },
-      { $set: { message: newMessage, updatedAt: new Date() } }
-    );
-
-    await ctx.reply(`✏️ Texto actualizado:\n\n${newMessage.substring(0, 200)}...`);
   });
 
   bot.catch((err) => {
