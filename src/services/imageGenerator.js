@@ -1,4 +1,5 @@
 const axios = require('axios');
+const config = require('../config');
 const { getDb } = require('../mongo');
 
 const POLLINATIONS_URL = 'https://image.pollinations.ai/prompt';
@@ -13,12 +14,12 @@ function generateImageUrl(prompt, options = {}) {
 }
 
 async function generateImage(prompt, options = {}) {
-  const url = generateImageUrl(prompt, options);
+  const pollinationsUrl = generateImageUrl(prompt, options);
 
   console.log('[IMG] Generando imagen:', prompt.substring(0, 60) + '...');
 
   try {
-    const response = await axios.get(url, {
+    const response = await axios.get(pollinationsUrl, {
       responseType: 'arraybuffer',
       timeout: 60000,
       maxRedirects: 5,
@@ -31,10 +32,55 @@ async function generateImage(prompt, options = {}) {
     }
 
     console.log('[IMG] Imagen generada:', (buffer.length / 1024).toFixed(1) + 'KB');
-    return { url: url, buffer: buffer };
+
+    const cloudinaryUrl = await uploadToCloudinary(buffer, options.filename || 'plan_' + Date.now());
+    if (cloudinaryUrl) {
+      return { url: cloudinaryUrl, buffer: null };
+    }
+
+    return { url: pollinationsUrl, buffer: buffer };
   } catch (e) {
     console.error('[IMG] Error generando imagen:', e.message);
     return { url: null, buffer: null };
+  }
+}
+
+async function uploadToCloudinary(buffer, filename) {
+  if (!config.CLOUDINARY_CLOUD_NAME || !config.CLOUDINARY_API_KEY || !config.CLOUDINARY_API_SECRET) {
+    console.log('[IMG] Cloudinary no configurado');
+    return null;
+  }
+
+  try {
+    const cloudinary = require('cloudinary').v2;
+    cloudinary.config({
+      cloud_name: config.CLOUDINARY_CLOUD_NAME,
+      api_key: config.CLOUDINARY_API_KEY,
+      api_secret: config.CLOUDINARY_API_SECRET,
+    });
+
+    return new Promise((resolve) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'pokemon-bot/plans',
+          public_id: filename || `plan_${Date.now()}`,
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error) {
+            console.error('[IMG] Error subiendo a Cloudinary:', error.message);
+            resolve(null);
+          } else {
+            console.log('[IMG] Subido a Cloudinary:', result.secure_url);
+            resolve(result.secure_url);
+          }
+        }
+      );
+      stream.end(buffer);
+    });
+  } catch (e) {
+    console.error('[IMG] Error Cloudinary:', e.message);
+    return null;
   }
 }
 
@@ -55,7 +101,8 @@ async function generateContentWithImage(contentType, theme, pokemonData) {
   const promptFn = imagePrompts[contentType] || imagePrompts['pokemon-dia'];
   const prompt = promptFn(pokemonData);
 
-  const result = await generateImage(prompt);
+  const filename = `${contentType}_${pokemonData?.name || 'general'}_${Date.now()}`;
+  const result = await generateImage(prompt, { filename });
 
   return {
     imageUrl: result.url,
@@ -63,4 +110,4 @@ async function generateContentWithImage(contentType, theme, pokemonData) {
   };
 }
 
-module.exports = { generateImage, generateImageUrl, generateContentWithImage };
+module.exports = { generateImage, generateImageUrl, uploadToCloudinary, generateContentWithImage };

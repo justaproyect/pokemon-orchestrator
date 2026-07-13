@@ -13,6 +13,10 @@ module.exports = {
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
   AI_MODEL: process.env.AI_MODEL || 'google/gemini-2.0-flash-001',
 
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || '',
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '',
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || '',
+
   TIMEZONE: process.env.TIMEZONE || 'America/Bogota',
   PLAN_HOUR: parseInt(process.env.PLAN_HOUR || '1'),
   PLAN_MINUTE: parseInt(process.env.PLAN_MINUTE || '0'),

@@ -29,3 +29,9 @@ services:
         value: "1"
       - key: ANALYTICS_HOUR
         value: "23"
+      - key: CLOUDINARY_CLOUD_NAME
+        value: pr45otub
+      - key: CLOUDINARY_API_KEY
+        value: "185278746692157"
+      - key: CLOUDINARY_API_SECRET
+        value: z18bJOcV1ZCA0cREdJPdbBFTCHE
