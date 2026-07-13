@@ -7,6 +7,7 @@ const { analyzeTrends, getLatestTrends } = require('./services/trendAnalyzer');
 const { generatePlanContent, generateFullContent } = require('./services/contentGenerator');
 const ai = require('./services/ai');
 const axios = require('axios');
+const { getDb } = require('./mongo');
 
 let bot = null;
 
@@ -38,9 +39,12 @@ function init() {
       '*Pokemon Orchestrator*\n\n' +
       'Comandos disponibles:\n' +
       '/plan - Ver plan de hoy\n' +
-      '/plan [fecha] - Ver plan de una fecha\n' +
       '/generar - Crear plan manualmente\n' +
-      '/probar [groupId] - Probar 1 post en grupo de prueba\n' +
+      '/probar [groupId] - Probar 1 post\n' +
+      '/pendientes - Ver posts para revisar\n' +
+      '/aprobar [id] - Enviar post al grupo\n' +
+      '/diferir [id] - Guardar para despues\n' +
+      '/editar [id] [texto] - Modificar post\n' +
       '/tendencias - Ver tendencias actuales\n' +
       '/status - Estado de los bots\n' +
       '/reporte - Reporte semanal\n' +
@@ -55,9 +59,12 @@ function init() {
     await ctx.reply(
       '*Comandos:*\n\n' +
       '/plan - Plan de hoy\n' +
-      '/plan 2026-07-15 - Plan de una fecha\n' +
       '/generar - Crear plan ahora\n' +
-      '/probar [groupId] - Probar 1 post en grupo\n' +
+      '/probar [groupId] - Probar 1 post\n' +
+      '/pendientes - Ver posts para revisar\n' +
+      '/aprobar [id] - Enviar post\n' +
+      '/diferir [id] - Guardar para despues\n' +
+      '/editar [id] [texto] - Modificar\n' +
       '/tendencias - Analizar tendencias\n' +
       '/status - Estado del sistema\n' +
       '/reporte - Reporte semanal\n' +
@@ -100,14 +107,16 @@ function init() {
       
       const results = await generatePlanContent(plan);
       
-      let msg = `*CONTENIDO GENERADO*\n\n`;
+      let msg = `*CONTENIDO GENERADO - PENDIENTE REVISION*\n\n`;
       for (const content of results) {
         msg += `*${content.groupType}* (${content.contentType})\n`;
         msg += `${content.message?.substring(0, 80)}...\n`;
-        msg += `Imagen: ${content.imageUrl ? '✅ Cloudinary' : '❌ Sin imagen'}\n\n`;
+        msg += `Imagen: ${content.imageUrl ? '✅' : '❌'}\n`;
+        msg += `ID: \`${content.postId}\`\n\n`;
       }
       
-      msg += `\nTotal: ${results.length} posts con contenido listo para enviar.`;
+      msg += `\nTotal: ${results.length} posts listos.\n\n`;
+      msg += `Usa /pendientes para ver todos los posts pendientes.`;
       await ctx.reply(msg);
     } catch (e) {
       await ctx.reply(`Error: ${e.message}`);
@@ -304,7 +313,7 @@ function init() {
     for (let i = 0; i < days; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      dates.push(d.toISOString().split('T')[0]);
+      dates.push(d.to Date().toISOString().split('T')[0]);
     }
 
     let msg = '*HISTORIAL 7 DIAS*\n\n';
@@ -319,12 +328,157 @@ function init() {
     await ctx.reply(msg);
   });
 
+  bot.command('pendientes', async (ctx) => {
+    const db = getDb();
+    const pending = await db.collection('generated_content')
+      .find({ status: 'pending_review' })
+      .sort({ generatedAt: -1 })
+      .toArray();
+
+    if (pending.length === 0) {
+      await ctx.reply('No hay posts pendientes de revision.');
+      return;
+    }
+
+    let msg = `*POSTS PENDIENTES (${pending.length})*\n\n`;
+    for (const post of pending) {
+      const preview = post.message?.substring(0, 60) || 'Sin texto';
+      msg += `*ID:* \`${post.postId}\`\n`;
+      msg += `*Tipo:* ${post.contentType}\n`;
+      msg += `*Grupo:* ${post.groupType}\n`;
+      msg += `*Texto:* ${preview}...\n`;
+      msg += `*Imagen:* ${post.imageUrl ? '✅' : '❌'}\n\n`;
+    }
+
+    msg += 'Comandos:\n';
+    msg += '/aprobar [id] - Enviar al grupo\n';
+    msg += '/diferir [id] - Guardar para despues\n';
+    msg += '/editar [id] [nuevo texto]\n';
+
+    await ctx.reply(msg);
+  });
+
+  bot.command('aprobar', async (ctx) => {
+    const postId = ctx.match;
+    if (!postId) {
+      await ctx.reply('Usa: /aprobar [postId]\nEjemplo: /aprobar plan_20260713_general_0');
+      return;
+    }
+
+    const db = getDb();
+    const post = await db.collection('generated_content').findOne({ postId });
+
+    if (!post) {
+      await ctx.reply('Post no encontrado.');
+      return;
+    }
+
+    if (post.status !== 'pending_review') {
+      await ctx.reply(`El post ya tiene status: ${post.status}`);
+      return;
+    }
+
+    await db.collection('generated_content').updateOne(
+      { postId },
+      { $set: { status: 'approved', reviewedAt: new Date(), approvedBy: 'telegram' } }
+    );
+
+    console.log(`[APROBAR] Post ${postId} aprobado`);
+
+    try {
+      if (config.COMMUNITY_BOT_URL) {
+        const response = await axios.post(`${config.COMMUNITY_BOT_URL}/probar`, {
+          message: post.message,
+          imageUrl: post.imageUrl,
+          groupId: getGroupIdForType(post.groupType),
+        });
+
+        if (response.data.success) {
+          await ctx.reply(`✅ Post enviado al grupo ${post.groupType}`);
+          await db.collection('generated_content').updateOne(
+            { postId },
+            { $set: { status: 'sent', sentAt: new Date() } }
+          );
+        } else {
+          await ctx.reply(`⚠️ Post aprobado pero error al enviar: ${response.data.error}`);
+        }
+      } else {
+        await ctx.reply(`✅ Post aprobado. Esperando envio por MiniBot.`);
+      }
+    } catch (e) {
+      await ctx.reply(`✅ Post aprobado. Error de conexion: ${e.message}`);
+    }
+  });
+
+  bot.command('diferir', async (ctx) => {
+    const postId = ctx.match;
+    if (!postId) {
+      await ctx.reply('Usa: /diferir [postId]');
+      return;
+    }
+
+    const db = getDb();
+    const post = await db.collection('generated_content').findOne({ postId });
+
+    if (!post) {
+      await ctx.reply('Post no encontrado.');
+      return;
+    }
+
+    await db.collection('generated_content').updateOne(
+      { postId },
+      { $set: { status: 'deferred', reviewedAt: new Date() } }
+    );
+
+    await ctx.reply(`⏸️ Post diferido. Quedara guardado para despues.`);
+  });
+
+  bot.command('editar', async (ctx) => {
+    const args = ctx.match;
+    if (!args || args.length < 2) {
+      await ctx.reply('Usa: /editar [postId] [nuevo texto]\nEjemplo: /editar plan_20260713_general_0 Hola Pokemon!');
+      return;
+    }
+
+    const parts = args.split(' ');
+    const postId = parts[0];
+    const newMessage = parts.slice(1).join(' ');
+
+    const db = getDb();
+    const post = await db.collection('generated_content').findOne({ postId });
+
+    if (!post) {
+      await ctx.reply('Post no encontrado.');
+      return;
+    }
+
+    await db.collection('generated_content').updateOne(
+      { postId },
+      { $set: { message: newMessage, updatedAt: new Date() } }
+    );
+
+    await ctx.reply(`✏️ Texto actualizado:\n\n${newMessage.substring(0, 200)}...`);
+  });
+
   bot.catch((err) => {
     console.error('[TELEGRAM] Error:', err.message);
   });
 
   console.log('[TELEGRAM] Bot inicializado');
   return bot;
+}
+
+function getGroupIdForType(groupType) {
+  const types = {
+    general: 'general',
+    tienda: 'tienda',
+    torneos: 'torneos',
+    compra: 'compra',
+    subastas: 'subastas',
+    rifas: 'rifas',
+    anuncios: 'anuncios',
+  };
+  return types[groupType] || 'general';
 }
 
 function getBot() {

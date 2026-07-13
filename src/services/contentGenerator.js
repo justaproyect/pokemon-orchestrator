@@ -90,7 +90,7 @@ async function generateFullContent(postId, contentType, theme, groupType) {
     postId,
     date: new Date().toISOString().split('T')[0],
     groupType,
-    status: 'generated',
+    status: 'pending_review',
     contentType,
     message: message || '',
     imageUrl: imageData?.imageUrl || null,
@@ -102,6 +102,8 @@ async function generateFullContent(postId, contentType, theme, groupType) {
     } : null,
     aiModel: config.OPENROUTER_API_KEY ? config.AI_MODEL : 'template',
     generatedAt: new Date(),
+    reviewedAt: null,
+    approvedBy: null,
     sentAt: null,
     sentToGroups: [],
     engagement: { reactions: 0, replies: 0, forwards: 0 },
@@ -134,9 +136,9 @@ async function generatePlanContent(plan) {
   if (results.length > 0) {
     await db.collection('plans').updateOne(
       { date: plan.date },
-      { $set: { status: 'ready', updatedAt: new Date() } }
+      { $set: { status: 'pending_review', updatedAt: new Date() } }
     );
-    console.log(`[CONTENT] Plan ${plan.date} listo: ${results.length}/${plan.posts.length} posts generados`);
+    console.log(`[CONTENT] Plan ${plan.date} listo para revision: ${results.length}/${plan.posts.length} posts generados`);
   }
 
   return results;

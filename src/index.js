@@ -70,6 +70,48 @@ app.post('/api/probar', async (req, res) => {
   }
 });
 
+app.get('/api/pendientes', async (req, res) => {
+  try {
+    const db = mongo.getDb();
+    const pending = await db.collection('generated_content')
+      .find({ status: 'approved' })
+      .sort({ reviewedAt: 1 })
+      .toArray();
+
+    console.log(`[API] Consultando posts aprobados: ${pending.length}`);
+    res.json({ success: true, posts: pending });
+  } catch (e) {
+    console.error('[API] Error en /api/pendientes:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/api/marcar-enviado', async (req, res) => {
+  try {
+    const { postId, groupType } = req.body;
+    const db = mongo.getDb();
+
+    await db.collection('generated_content').updateOne(
+      { postId },
+      {
+        $set: {
+          status: 'sent',
+          sentAt: new Date(),
+        },
+        $push: {
+          sentToGroups: { groupType, sentAt: new Date() },
+        },
+      }
+    );
+
+    console.log(`[API] Post ${postId} marcado como enviado a ${groupType}`);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('[API] Error en /api/marcar-enviado:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 function startCronJobs() {
   const tz = config.TIMEZONE;
 
