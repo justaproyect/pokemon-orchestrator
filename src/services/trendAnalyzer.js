@@ -91,6 +91,16 @@ async function analyzeTrends() {
     themes: extractThemes(results),
   };
 
+  const ai = require('./ai');
+  if (config.OPENROUTER_API_KEY) {
+    console.log('[TRENDS] Analizando con IA...');
+    const aiIdeas = await ai.analyzeTrendsWithAI(trends);
+    if (aiIdeas.length > 0) {
+      trends.aiIdeas = aiIdeas;
+      console.log('[TRENDS] IA genero', aiIdeas.length, 'ideas');
+    }
+  }
+
   await db.collection('trends').insertOne(trends);
   console.log('[TRENDS] Analisis completado:', trends.themes.length, 'temas detectados');
 

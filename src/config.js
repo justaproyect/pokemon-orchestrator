@@ -10,6 +10,9 @@ module.exports = {
   COMMUNITY_BOT_URL: process.env.COMMUNITY_BOT_URL || '',
   TOYTSUKY_URL: process.env.TOYTSUKY_URL || '',
 
+  OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
+  AI_MODEL: process.env.AI_MODEL || 'google/gemini-2.0-flash-001',
+
   TIMEZONE: process.env.TIMEZONE || 'America/Bogota',
   PLAN_HOUR: parseInt(process.env.PLAN_HOUR || '1'),
   PLAN_MINUTE: parseInt(process.env.PLAN_MINUTE || '0'),

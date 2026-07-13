@@ -4,6 +4,7 @@ const { generatePlan, getPlan, getUpcomingPlans } = require('./services/planGene
 const { processFeedback, getRecentFeedback } = require('./services/feedbackProcessor');
 const { getDailyAnalytics, getWeeklyReport, formatReport } = require('./services/analyticsAnalyzer');
 const { analyzeTrends, getLatestTrends } = require('./services/trendAnalyzer');
+const ai = require('./services/ai');
 
 let bot = null;
 
@@ -39,6 +40,7 @@ function init() {
       '/status - Estado de los bots\n' +
       '/reporte - Reporte semanal\n' +
       '/feedback [mensaje] - Dar feedback\n' +
+      '/chat [mensaje] - Hablar con la IA\n' +
       '/historial - Ultimos 7 dias\n' +
       '/ayuda - Ver esta ayuda'
     );
@@ -54,6 +56,7 @@ function init() {
       '/status - Estado del sistema\n' +
       '/reporte - Reporte semanal\n' +
       '/feedback [msg] - Ej: /feedback Las trivia estan muy faciles\n' +
+      '/chat [msg] - Ej: /chat QuePokemon destacar esta semana?\n' +
       '/historial - Ultimos 7 dias'
     );
   });
@@ -167,19 +170,54 @@ function init() {
       return;
     }
 
-    const result = await processFeedback(message, ctx.from.id);
-    let msg = `*Feedback procesado*\n`;
-    msg += `Tipo: ${result.type}\n`;
-    msg += `Ajustes: ${result.adjustments.length}\n\n`;
-
-    for (const adj of result.adjustments) {
-      msg += `- ${adj.field}: ${adj.action}`;
-      if (adj.value) msg += ` → ${adj.value}`;
-      if (adj.contentType) msg += ` (${adj.contentType})`;
-      msg += '\n';
+    if (config.OPENROUTER_API_KEY) {
+      await ctx.reply('Procesando con IA...');
+      const aiResult = await ai.processFeedbackWithAI(message, {});
+      if (aiResult) {
+        let msg = `${aiResult.response}\n\n`;
+        msg += `*Entendi:* ${aiResult.understanding}\n`;
+        msg += `*Tipo:* ${aiResult.type}\n`;
+        if (aiResult.adjustments?.length) {
+          msg += `*Ajustes:*\n`;
+          for (const adj of aiResult.adjustments) {
+            msg += `- ${adj.field}: ${adj.action}`;
+            if (adj.value) msg += ` → ${adj.value}`;
+            msg += '\n';
+          }
+        }
+        await processFeedback(message, ctx.from.id);
+        await ctx.reply(msg);
+        return;
+      }
     }
 
+    const result = await processFeedback(message, ctx.from.id);
+    let msg = `Feedback procesado: ${result.type} (${result.adjustments.length} ajustes)`;
     await ctx.reply(msg);
+  });
+
+  bot.command('chat', async (ctx) => {
+    const message = ctx.match;
+    if (!message) {
+      await ctx.reply('Usa: /chat [tu mensaje]\nEjemplo: /chat QuePokemon deberiamos destacar hoy?');
+      return;
+    }
+
+    if (!config.OPENROUTER_API_KEY) {
+      await ctx.reply('IA no configurada. Agrega OPENROUTER_API_KEY en Render.');
+      return;
+    }
+
+    await ctx.reply('Pensando...');
+    const response = await ai.chatWithUser([
+      { role: 'user', content: message }
+    ]);
+
+    if (response) {
+      await ctx.reply(response);
+    } else {
+      await ctx.reply('Error al conectar con la IA. Intenta de nuevo.');
+    }
   });
 
   bot.command('historial', async (ctx) => {
