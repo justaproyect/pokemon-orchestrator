@@ -8,6 +8,7 @@ const { generatePlanContent, generateFullContent } = require('./services/content
 const ai = require('./services/ai');
 const axios = require('axios');
 const { getDb } = require('./mongo');
+const animator = require('./services/animator');
 
 let bot = null;
 
@@ -42,15 +43,20 @@ function init() {
       '/pendientes - Ver posts para revisar\n' +
       '/plan - Ver plan de hoy\n' +
       '/probar [groupId] - Probar 1 post\n' +
+      '/animar [grupo] - Enviar animacion\n' +
+      '/sorpresa [grupo] - Enviar sorpresa\n' +
+      '/silencio [grupo] - Mensaje de silencio\n' +
+      '/recap - Recap semanal\n' +
       '/tendencias - Ver tendencias\n' +
       '/status - Estado del sistema\n' +
       '/chat [mensaje] - Hablar con la IA\n' +
       '/ayuda - Ver esta ayuda\n\n' +
-      '*Como revisar posts:*\n' +
-      'Despues de /generar, toca los botones\n' +
-      '✅ Aprobar → Se envia al grupo\n' +
-      '⏸️ Diferir → Guarda para despues\n' +
-      '✏️ Editar → Cambias el texto'
+      '*Animador automatico:*\n' +
+      '10:00 AM → Saludo\n' +
+      '2:00 PM → Hype\n' +
+      '6:00 PM → Sorpresa\n' +
+      '9:00 PM → Mensaje de silencio\n' +
+      '10:00 PM → Cierre del dia'
     );
   });
 
@@ -60,13 +66,16 @@ function init() {
       '/generar - Crear posts ahora\n' +
       '/pendientes - Ver posts pendientes\n' +
       '/plan - Plan de hoy\n' +
-      '/probar [groupId] - Probar 1 post\n' +
+      '/probar [groupId] - Probar 1 post\n\n' +
+      '*Animador:*\n' +
+      '/animar [grupo] - Animar grupo\n' +
+      '/sorpresa [grupo] - Sorpresa\n' +
+      '/silencio [grupo] - Mensaje de silencio\n' +
+      '/recap - Recap semanal\n\n' +
+      '*Otros:*\n' +
       '/tendencias - Analizar tendencias\n' +
       '/status - Estado del sistema\n' +
-      '/chat [msg] - Hablar con la IA\n\n' +
-      '*Revisar posts:*\n' +
-      'Toca ✅ o ⏸️ en cada post\n' +
-      'No necesitas escribir comandos'
+      '/chat [msg] - Hablar con la IA'
     );
   });
 
@@ -495,6 +504,52 @@ function init() {
         `Grupo: ${post?.groupType}`,
         { reply_markup: keyboard }
       );
+    }
+  });
+
+  bot.command('animar', async (ctx) => {
+    const groupType = ctx.match || 'general';
+    const groups = ['general', 'tienda', 'torneos', 'compra', 'subastas', 'rifas', 'anuncios'];
+
+    if (!groups.includes(groupType)) {
+      await ctx.reply(`Grupo invalido. Opciones: ${groups.join(', ')}`);
+      return;
+    }
+
+    await ctx.reply(`Enviando animacion a ${groupType}...`);
+    const msg = await animator.sendAnimation(groupType, 'hype');
+    if (msg) {
+      await ctx.reply(`Animacion enviada a ${groupType}:\n\n${msg}`);
+    } else {
+      await ctx.reply('Error enviando animacion');
+    }
+  });
+
+  bot.command('sorpresa', async (ctx) => {
+    const groupType = ctx.match || 'general';
+    await ctx.reply(`Enviando sorpresa a ${groupType}...`);
+    const msg = await animator.sendAnimation(groupType, 'surprise');
+    if (msg) {
+      await ctx.reply(`Sorpresa enviada:\n\n${msg}`);
+    } else {
+      await ctx.reply('Error enviando sorpresa');
+    }
+  });
+
+  bot.command('recap', async (ctx) => {
+    await ctx.reply('Generando recap semanal...');
+    const recap = await animator.generateWeeklyRecap();
+    await ctx.reply(recap);
+  });
+
+  bot.command('silencio', async (ctx) => {
+    const groupType = ctx.match || 'general';
+    await ctx.reply(`Enviando mensaje de silencio a ${groupType}...`);
+    const msg = await animator.sendAnimation(groupType, 'silence');
+    if (msg) {
+      await ctx.reply(`Mensaje enviado:\n\n${msg}`);
+    } else {
+      await ctx.reply('Error');
     }
   });
 

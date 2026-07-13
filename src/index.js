@@ -6,6 +6,7 @@ const telegramBot = require('./telegramBot');
 const { generatePlan } = require('./services/planGenerator');
 const { analyzeTrends } = require('./services/trendAnalyzer');
 const { generateFullContent } = require('./services/contentGenerator');
+const animator = require('./services/animator');
 
 const app = express();
 app.use(express.json());
@@ -142,9 +143,19 @@ function startCronJobs() {
     }
   }, { timezone: tz });
 
+  cron.schedule('0 10,14,18,21,22 * * *', async () => {
+    console.log('[CRON] Ejecutando animaciones programadas...');
+    try {
+      await animator.runScheduledAnimations();
+    } catch (e) {
+      console.error('[CRON] Error en animaciones:', e.message);
+    }
+  }, { timezone: tz });
+
   console.log('[CRON] Tareas programadas:');
   console.log(`  - Plan diario: ${config.PLAN_HOUR}:${config.PLAN_MINUTE.toString().padStart(2, '0')} (${tz})`);
   console.log(`  - Tendencias: 6:00 AM y 6:00 PM (${tz})`);
+  console.log(`  - Animaciones: 10:00, 14:00, 18:00, 21:00, 22:00 (${tz})`);
 }
 
 async function start() {
