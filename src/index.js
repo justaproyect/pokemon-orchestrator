@@ -16,6 +16,9 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     service: 'pokemon-orchestrator',
+    telegram: !!config.TELEGRAM_BOT_TOKEN,
+    ai: !!config.OPENROUTER_API_KEY,
+    mongo: !!config.MONGO_URI,
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
   });
@@ -71,6 +74,12 @@ async function start() {
     console.log('[MAIN] MongoDB conectado');
 
     telegramBot.init();
+    const tgBot = telegramBot.getBot();
+    if (tgBot) {
+      tgBot.start({
+        onStart: () => console.log('[TELEGRAM] Bot conectado y escuchando mensajes'),
+      });
+    }
     console.log('[MAIN] Telegram bot listo');
 
     startCronJobs();

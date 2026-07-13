@@ -15,10 +15,12 @@ function isAllowed(userId) {
 
 function init() {
   if (!config.TELEGRAM_BOT_TOKEN) {
-    console.log('[TELEGRAM] No hay token configurado. Bot Telegram deshabilitado.');
+    console.log('[TELEGRAM] ERROR: No hay token configurado. Bot Telegram deshabilitado.');
+    console.log('[TELEGRAM] Agrega TELEGRAM_BOT_TOKEN en Render Environment');
     return null;
   }
 
+  console.log('[TELEGRAM] Iniciando bot con token:', config.TELEGRAM_BOT_TOKEN.substring(0, 10) + '...');
   bot = new Bot(config.TELEGRAM_BOT_TOKEN);
 
   bot.use(async (ctx, next) => {
